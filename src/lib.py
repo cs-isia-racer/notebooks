@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -18,7 +19,7 @@ class Estimator:
         )
 
 
-def load_images(path):
+def load_images(path, rgb=True):
     dataset_path = Path(path).expanduser()
 
     for out_path in dataset_path.iterdir():
@@ -29,9 +30,15 @@ def load_images(path):
                 id = f"{out_path.name}.{nb:08}"
                 steering = float(steering)
                 throttle = float(throttle)
-                yield (id, cv2.imread(str(img_path)), steering, throttle)
+                img = cv2.imread(str(img_path))
+                if rgb:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+                yield (id, img, steering, throttle)
+
 
 TEST_RATIO = 0.2
+
 
 def load_dataset(path):
     X = []
@@ -43,4 +50,4 @@ def load_dataset(path):
 
     lim = int(TEST_RATIO * len(X))
 
-    return X[lim:], y[lim:], X[:lim], y[:lim]
+    return np.array(X[lim:]), np.array(y[lim:]), np.array(X[:lim]), np.array(y[:lim])
