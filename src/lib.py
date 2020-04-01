@@ -1,5 +1,6 @@
-from pathlib import Path
 import math
+from pathlib import Path
+from collections import Counter
 
 import cv2
 import numpy as np
@@ -108,3 +109,54 @@ def angle_from_lines(lines):
     a = -180 / math.pi * np.mean(weighted_mean_angle)
 
     return min(30, max(-30, a)) / 30
+
+
+def remove_clusters(img, max_size):
+    """
+    remove_clusters removes the groups of pixels having the same values
+    bigger than the given limit, this allows us to remove the noise outside
+    the circuit after a kmeans
+
+    it zeroes the pixels on the image border
+    """
+    clusters = {}
+
+    height, width = img.shape[:2]
+
+    counter = 1
+
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            pix = img[y][x]
+            loc = (y, x)
+
+            n1, n2, n3, n4 = (y+1, x), (y-1, x), (y, x-1), (y, x+1)
+
+            color = 0
+            color = color or (pix == img[n1] and clusters.get(n1))
+            color = color or (pix == img[n2] and clusters.get(n2))
+            color = color or (pix == img[n3] and clusters.get(n3))
+            color = color or (pix == img[n4] and clusters.get(n4))
+
+            if not color:
+                color = counter
+                counter += 1
+
+            # Not necessary and gives a small speedup
+            # clusters[loc] = color
+            clusters[n1] = pix == img[n1] and color
+            clusters[n2] = pix == img[n2] and color
+            clusters[n3] = pix == img[n3] and color
+            clusters[n4] = pix == img[n4] and color
+
+    sizes = Counter(clusters.values())
+    res = np.zeros(img.shape)
+
+    for y in range(1, img.shape[0] -1):
+        for x in range(1, img.shape[1] - 1):
+            if sizes[clusters[(y, x)]] > max_size:
+                res[y][x] = 0
+            else:
+                res[y][x] = img[y][x]
+
+    return res
