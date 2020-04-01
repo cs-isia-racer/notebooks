@@ -125,29 +125,36 @@ def remove_clusters(img, max_size):
 
     counter = 1
 
-    for y in range(1, height - 1):
-        for x in range(1, width - 1):
-            pix = img[y][x]
-            loc = (y, x)
+    seen = set()
+    for yy in range(height):
+        for xx in range(width):
+            if (yy, xx) in seen: continue
 
-            n1, n2, n3, n4 = (y+1, x), (y-1, x), (y, x-1), (y, x+1)
+            stack = [(yy, xx)]
+            while stack:
+                loc = stack.pop()
+                if loc in seen: continue
 
-            color = 0
-            color = color or (pix == img[n1] and clusters.get(n1))
-            color = color or (pix == img[n2] and clusters.get(n2))
-            color = color or (pix == img[n3] and clusters.get(n3))
-            color = color or (pix == img[n4] and clusters.get(n4))
+                seen.add(loc)
+                (y, x) = loc
 
-            if not color:
+                # Boundaries
+                if x*y == 0 or x >= width -1 or y >= height -1: continue
+
+                pix = img[y][x]
+
+                neighbors = (n for n in ((y+1, x), (y-1, x), (y, x+1), (y, x-1)) if pix == img[n])
+
                 color = counter
+                for n in neighbors:
+                    stack.append(n)
+                    color = clusters.get(n, color)
+
                 counter += 1
 
-            # Not necessary and gives a small speedup
-            # clusters[loc] = color
-            clusters[n1] = pix == img[n1] and color
-            clusters[n2] = pix == img[n2] and color
-            clusters[n3] = pix == img[n3] and color
-            clusters[n4] = pix == img[n4] and color
+                clusters[loc] = color
+                for n in neighbors:
+                    clusters[n] = color
 
     sizes = Counter(clusters.values())
     res = np.zeros(img.shape)
