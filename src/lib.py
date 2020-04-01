@@ -22,8 +22,8 @@ class Estimator:
 def load_images(path, rgb=True):
     dataset_path = Path(path).expanduser()
 
-    for out_path in dataset_path.iterdir():
-        for img_path in out_path.iterdir():
+    for out_path in sorted(list(dataset_path.iterdir())):
+        for img_path in sorted(list(out_path.iterdir())):
             if img_path.name.endswith(".jpg"):
                 _, nb, steering, throttle = img_path.name.replace(".jpg", "").split("_")
                 nb = int(nb)
