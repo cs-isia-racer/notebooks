@@ -4,6 +4,7 @@ from collections import Counter
 
 import cv2
 import numpy as np
+from sklearn.cluster import KMeans
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -201,3 +202,45 @@ def remove_clusters(img, max_size):
                 res[y][x] = img[y][x]
 
     return res
+
+
+# We train a KMeans to identify two groups of pixels:
+# - The "black pixels"
+# - The "white pixels"
+# This is much more efficient than using a binary filter
+def find_cluster_centers(X):
+    length, h, w = X.shape[:3]
+    kmeans = KMeansAlgo(
+        n_clusters=2,
+        random_state=0,
+        verbose=True,
+        compute_labels=False,
+        batch_size=2000,
+        n_init=10,
+    ).fit(X.reshape(length * h * w, 3))
+    return kmeans
+
+
+# Obtained using kmeans
+DEFAULT_CLUSTER_CENTERS = np.array(
+    [
+        [190.92414031, 143.03555383, 142.36439433],
+        [74.92775525, 49.96258754, 43.38757833],
+    ]
+)
+
+
+def l2_dist(u, v):
+    d = u - v
+    d2 = (d * d).sum(axis=2)
+    return d2
+
+
+def cluster_filter(img, centers=DEFAULT_CLUSTER_CENTERS):
+    c1, c2 = centers
+
+    img = img.astype(np.float64)
+    d1 = l2_dist(img, c1)
+    d2 = l2_dist(img, c2)
+
+    return (d1 > d2).astype(np.uint8)
