@@ -85,8 +85,11 @@ def _line_angle(x1, y1, x2, y2, angle_limit=90):
     return angle
 
 
-def angle_from_lines(lines):
-    # Angle between -30 and 30 (-1 and 1)
+ANGLE_LIMIT = 35
+
+
+def angle_from_lines(lines, weighted):
+    # Angle between -ANGLE_LIMIT and ANGLE_LIMIT (-1 and 1)
 
     angles = []
     lengths = []
@@ -104,11 +107,35 @@ def angle_from_lines(lines):
     angles = np.array(angles)
     lengths = np.array(lengths)
 
+    if not weighted:
+        lengths = np.ones(lengths.shape)
+
     weighted_mean_angle = np.sum(angles * lengths) / np.sum(lengths)
 
     a = -180 / math.pi * np.mean(weighted_mean_angle)
 
-    return min(30, max(-30, a)) / 30
+    return min(ANGLE_LIMIT, max(-ANGLE_LIMIT, a)) / ANGLE_LIMIT
+
+
+def draw_lines(img, lines, offset=0, weighted=False):
+    line_image = np.zeros_like(img)
+
+    for line in lines:
+        for x1, y1, x2, y2 in line:
+            color = 42
+            cv2.line(line_image, (x1, y1 + offset), (x2, y2 + offset), color, 10)
+
+    dy = 30
+    dx = int(dy * math.tan(angle_from_lines(lines, weighted)))
+    x = img.shape[1] // 2
+    y = img.shape[0] - 1
+
+    cv2.arrowedLine(line_image, (x, y), (x + dx, y - dy), 7, 5)
+
+    # Draw the lines on the  image
+    lines_edges = cv2.addWeighted(img, 0.8, line_image, 1, 0)
+
+    return lines_edges
 
 
 def remove_clusters(img, max_size):
@@ -128,22 +155,29 @@ def remove_clusters(img, max_size):
     seen = set()
     for yy in range(height):
         for xx in range(width):
-            if (yy, xx) in seen: continue
+            if (yy, xx) in seen:
+                continue
 
             stack = [(yy, xx)]
             while stack:
                 loc = stack.pop()
-                if loc in seen: continue
+                if loc in seen:
+                    continue
 
                 seen.add(loc)
                 (y, x) = loc
 
                 # Boundaries
-                if x*y == 0 or x >= width -1 or y >= height -1: continue
+                if x * y == 0 or x >= width - 1 or y >= height - 1:
+                    continue
 
                 pix = img[y][x]
 
-                neighbors = (n for n in ((y+1, x), (y-1, x), (y, x+1), (y, x-1)) if pix == img[n])
+                neighbors = (
+                    n
+                    for n in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1))
+                    if pix == img[n]
+                )
 
                 color = counter
                 for n in neighbors:
@@ -159,7 +193,7 @@ def remove_clusters(img, max_size):
     sizes = Counter(clusters.values())
     res = np.zeros(img.shape)
 
-    for y in range(1, img.shape[0] -1):
+    for y in range(1, img.shape[0] - 1):
         for x in range(1, img.shape[1] - 1):
             if sizes[clusters[(y, x)]] > max_size:
                 res[y][x] = 0
