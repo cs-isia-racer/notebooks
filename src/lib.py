@@ -43,11 +43,11 @@ def load_images(path, rgb=True):
 TEST_RATIO = 0.2
 
 
-def load_dataset(path):
+def load_dataset(path, rgb=True):
     X = []
     y = []
 
-    for _, img, steer, _ in load_images(path):
+    for _, img, steer, _ in load_images(path, rgb=rgb):
         X.append(img)
         y.append(steer)
 
