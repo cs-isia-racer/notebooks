@@ -51,9 +51,8 @@ def load_dataset(path, rgb=True):
         X.append(img)
         y.append(steer)
 
-    lim = int(TEST_RATIO * len(X))
-
-    return np.array(X[lim:]), np.array(y[lim:]), np.array(X[:lim]), np.array(y[:lim])
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_RATIO, random_state=42)
+    return X_train, y_train, X_test, y_test
 
 
 def detect_lines(
