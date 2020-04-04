@@ -108,7 +108,7 @@ def lines_angles(lines):
     return np.array(angles), np.array(lengths)
 
 
-def angle_from_lines(lines, weighted):
+def angle_from_lines(lines, weighted, reduction=np.mean):
     # Angle between -ANGLE_LIMIT and ANGLE_LIMIT (-1 and 1)
 
     if lines is None:
@@ -122,9 +122,9 @@ def angle_from_lines(lines, weighted):
     if not weighted:
         lengths = np.ones(lengths.shape)
 
-    weighted_mean_angle = np.sum(angles * lengths) / np.sum(lengths)
+    weighted_mean_angle = angles * lengths / np.sum(lengths)
 
-    a = np.mean(weighted_mean_angle)
+    a = reduction(weighted_mean_angle)
 
     return normalize_angle(a)
 
