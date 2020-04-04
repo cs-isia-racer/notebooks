@@ -51,7 +51,9 @@ def load_dataset(path, rgb=True):
         X.append(img)
         y.append(steer)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_RATIO, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=TEST_RATIO, random_state=42
+    )
     return X_train, y_train, X_test, y_test
 
 
@@ -71,7 +73,7 @@ def detect_lines(
     )
 
 
-def _line_angle(x1, y1, x2, y2, angle_limit=90):
+def line_angle(x1, y1, x2, y2, angle_limit=90):
     angle = None
     if y2 == y1:
         angle = math.pi / 2 if x2 > x1 else -math.pi / 2
@@ -82,48 +84,63 @@ def _line_angle(x1, y1, x2, y2, angle_limit=90):
     if abs(180 / math.pi * angle) > angle_limit:
         return None
 
-    return angle
+    return -180 / math.pi * angle
 
 
 ANGLE_LIMIT = 35
 
 
-def angle_from_lines(lines, weighted):
-    # Angle between -ANGLE_LIMIT and ANGLE_LIMIT (-1 and 1)
+def normalize_angle(a):
+    return min(ANGLE_LIMIT, max(-ANGLE_LIMIT, a)) / ANGLE_LIMIT
 
+
+def lines_angles(lines):
     angles = []
     lengths = []
 
     for line in lines:
         for x1, y1, x2, y2 in line:
-            angle = _line_angle(x1, y1, x2, y2)
+            angle = line_angle(x1, y1, x2, y2)
             if angle:
                 angles.append(angle)
                 lengths.append(max(abs(x2 - x1), abs(y2 - y1)))
 
-    if not angles:
+    return np.array(angles), np.array(lengths)
+
+
+def angle_from_lines(lines, weighted, reduction=np.mean):
+    # Angle between -ANGLE_LIMIT and ANGLE_LIMIT (-1 and 1)
+
+    if lines is None:
         return 0
 
-    angles = np.array(angles)
-    lengths = np.array(lengths)
+    angles, lengths = lines_angles(lines)
+
+    if len(angles) == 0:
+        return 0
 
     if not weighted:
         lengths = np.ones(lengths.shape)
 
-    weighted_mean_angle = np.sum(angles * lengths) / np.sum(lengths)
+    weighted_mean_angle = angles * lengths / np.sum(lengths)
 
-    a = -180 / math.pi * np.mean(weighted_mean_angle)
+    a = reduction(weighted_mean_angle)
 
-    return min(ANGLE_LIMIT, max(-ANGLE_LIMIT, a)) / ANGLE_LIMIT
+    return normalize_angle(a)
 
 
-def draw_lines(img, lines, offset=0, weighted=False):
+def draw_lines(img, lines, offset=0, weighted=False, color_func=lambda _: 42):
     line_image = np.zeros_like(img)
+
+    if lines is None:
+        return np.copy(img)
 
     for line in lines:
         for x1, y1, x2, y2 in line:
-            color = 42
-            cv2.line(line_image, (x1, y1 + offset), (x2, y2 + offset), color, 10)
+            angle = line_angle(x1, y1, x2, y2)
+            cv2.line(
+                line_image, (x1, y1 + offset), (x2, y2 + offset), color_func(angle), 10
+            )
 
     dy = 30
     dx = int(dy * math.tan(angle_from_lines(lines, weighted)))
@@ -235,7 +252,7 @@ def l2_dist(u, v):
     return d2
 
 
-def cluster_filter(img, centers=DEFAULT_CLUSTER_CENTERS):
+def kmeans_filter(img, centers=DEFAULT_CLUSTER_CENTERS):
     c1, c2 = centers
 
     img = img.astype(np.float64)
@@ -243,3 +260,7 @@ def cluster_filter(img, centers=DEFAULT_CLUSTER_CENTERS):
     d2 = l2_dist(img, c2)
 
     return (d1 > d2).astype(np.uint8)
+
+
+def cluster_filter(img, centers=DEFAULT_CLUSTER_CENTERS, max_size=2000):
+    return remove_clusters(kmeans_filter(img), max_size)
