@@ -73,6 +73,30 @@ def detect_lines(
     )
 
 
+def detect_lines_parametric(edges, threshold):
+    return cv2.HoughLines(edges, 1, np.pi/180, threshold)
+
+
+def draw_lines_parametric(img, lines, offset=0, color_func=None):
+    if lines is None:
+        return None
+    if color_func is None:
+        color_func = lambda _: 42, 42, 42
+    img_lines = img.copy()
+    for line in lines:
+        for rho, theta in line:
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a*rho
+            y0 = b*rho
+            x1 = int(x0 + 1000*(-b))
+            y1 = int(y0 + 1000*(a))
+            x2 = int(x0 - 1000*(-b))
+            y2 = int(y0 - 1000*(a))
+            cv2.line(img_lines, (x1, y1+offset), (x2, y2+offset), color_func(theta), 2)
+    return img_lines
+
+
 def line_angle(x1, y1, x2, y2, angle_limit=90):
     angle = None
     if y2 == y1:
