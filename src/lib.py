@@ -79,7 +79,7 @@ def detect_lines_parametric(edges, threshold):
 
 def draw_lines_parametric(img, lines, offset=0, color_func=None):
     if lines is None:
-        return None
+        return img.copy()
     if color_func is None:
         color_func = lambda _: 42, 42, 42
     img_lines = img.copy()
